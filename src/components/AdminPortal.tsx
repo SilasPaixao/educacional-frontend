@@ -12,6 +12,8 @@ import {
   fetchAllApplications,
   fetchAnnouncement,
   updateAnnouncement,
+  fetchEnrollmentStatus,
+  setEnrollmentLock,
 } from '../services/api';
 import {
   ShieldCheck,
@@ -22,6 +24,7 @@ import {
   Plus,
   Trash2,
   Lock,
+  Unlock,
   Mail,
   UserCheck,
   UserX,
@@ -86,7 +89,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose, exter
   const [statsPage, setStatsPage] = useState(1);
   const STATS_PAGE_SIZE = 20;
   const [loadingDashboard, setLoadingDashboard] = useState(false);
-  const [dashboardTab, setDashboardTab] = useState<'announcement' | 'schools' | 'pending_admins' | 'stats'>('announcement');
+  const [dashboardTab, setDashboardTab] = useState<'announcement' | 'schools' | 'pending_admins' | 'stats' | 'enrollment'>('announcement');
+
+  // Enrollment Lock (Período de Matrículas) States
+  const [enrollmentLocked, setEnrollmentLockedState] = useState(false);
+  const [loadingEnrollmentLock, setLoadingEnrollmentLock] = useState(false);
+  const [savingEnrollmentLock, setSavingEnrollmentLock] = useState(false);
+  const [enrollmentLockMsg, setEnrollmentLockMsg] = useState<string | null>(null);
+  const [enrollmentLockErr, setEnrollmentLockErr] = useState<string | null>(null);
 
   // Announcement States
   const [announcementTitle, setAnnouncementTitle] = useState('Aviso Importante sobre Pré-Matrículas');
@@ -138,10 +148,39 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose, exter
         const pending = await fetchPendingAdmins();
         setPendingAdmins(pending);
       }
+
+      setLoadingEnrollmentLock(true);
+      try {
+        const lockData = await fetchEnrollmentStatus();
+        setEnrollmentLockedState(!!lockData.locked);
+      } catch {
+        // Silencioso: a aba mostra o estado padrão (aberto) se a checagem falhar
+      } finally {
+        setLoadingEnrollmentLock(false);
+      }
     } catch (err: any) {
       console.error(err);
     } finally {
       setLoadingDashboard(false);
+    }
+  };
+
+  const handleToggleEnrollmentLock = async () => {
+    setEnrollmentLockMsg(null);
+    setEnrollmentLockErr(null);
+    setSavingEnrollmentLock(true);
+    try {
+      const result = await setEnrollmentLock(!enrollmentLocked);
+      setEnrollmentLockedState(result.locked);
+      setEnrollmentLockMsg(
+        result.locked
+          ? 'Matrículas encerradas para todas as escolas. A partir de agora, quem tentar se inscrever verá o aviso de período encerrado.'
+          : 'Matrículas reabertas! As famílias já podem realizar novas inscrições normalmente.'
+      );
+    } catch (err: any) {
+      setEnrollmentLockErr(err.message || 'Erro ao atualizar o status das matrículas.');
+    } finally {
+      setSavingEnrollmentLock(false);
     }
   };
 
@@ -366,7 +405,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose, exter
                       Recuperar Login de Administrador
                     </h4>
                     <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                      Informe o e-mail informado no momento do cadastro para receber seus dados de acesso (usuário e senha temporária).
+                      Informe o e-mail informado no momento do cadastro para receber seus dados de acesso (usuário e senha cadastrados).
                     </p>
                   </div>
 
@@ -612,7 +651,121 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose, exter
                 <BarChart3 className="w-4 h-4" />
                 <span>Estatísticas de Matrículas</span>
               </button>
+
+              <button
+                onClick={() => setDashboardTab('enrollment')}
+                className={`pb-3 px-5 font-bold text-sm border-b-2 flex items-center gap-2 transition-colors ${
+                  dashboardTab === 'enrollment'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Lock className="w-4 h-4" />
+                <span>Período de Matrículas</span>
+                {enrollmentLocked && (
+                  <span className="bg-rose-500 text-white font-bold text-[10px] px-2 py-0.5 rounded-full">
+                    Encerrado
+                  </span>
+                )}
+              </button>
             </div>
+
+            {/* TAB: PERÍODO DE MATRÍCULAS (bloqueio geral do sistema) */}
+            {dashboardTab === 'enrollment' && (
+              <div className="space-y-6">
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-6">
+                  <div className="flex items-center space-x-2 border-b border-slate-200 pb-3">
+                    <Lock className="w-5 h-5 text-indigo-700" />
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                        Período de Matrículas
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Controla, para todas as escolas ao mesmo tempo, se novas solicitações de matrícula
+                        podem ser enviadas pela página inicial.
+                      </p>
+                    </div>
+                  </div>
+
+                  {enrollmentLockMsg && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-semibold flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
+                      <span>{enrollmentLockMsg}</span>
+                    </div>
+                  )}
+
+                  {enrollmentLockErr && (
+                    <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-xs font-semibold flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                      <span>{enrollmentLockErr}</span>
+                    </div>
+                  )}
+
+                  {loadingEnrollmentLock ? (
+                    <div className="py-6 text-center text-slate-500 text-sm">
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto text-blue-600 mb-2" />
+                      <span>Carregando status atual...</span>
+                    </div>
+                  ) : (
+                    <div
+                      className={`p-5 rounded-2xl border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                        enrollmentLocked
+                          ? 'bg-rose-50 border-rose-300'
+                          : 'bg-emerald-50 border-emerald-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
+                            enrollmentLocked ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
+                          }`}
+                        >
+                          {enrollmentLocked ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <p className={`font-extrabold text-sm ${enrollmentLocked ? 'text-rose-900' : 'text-emerald-900'}`}>
+                            {enrollmentLocked ? 'Matrículas Encerradas' : 'Matrículas Abertas'}
+                          </p>
+                          <p className={`text-xs mt-0.5 ${enrollmentLocked ? 'text-rose-700' : 'text-emerald-700'}`}>
+                            {enrollmentLocked
+                              ? 'Ninguém consegue enviar novas solicitações no momento.'
+                              : 'As famílias podem enviar novas solicitações normalmente.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleToggleEnrollmentLock}
+                        disabled={savingEnrollmentLock}
+                        className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors disabled:opacity-60 ${
+                          enrollmentLocked
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : 'bg-rose-600 hover:bg-rose-700 text-white'
+                        }`}
+                      >
+                        {savingEnrollmentLock ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : enrollmentLocked ? (
+                          <Unlock className="w-4 h-4" />
+                        ) : (
+                          <Lock className="w-4 h-4" />
+                        )}
+                        <span>{enrollmentLocked ? 'Reabrir Matrículas' : 'Encerrar Matrículas'}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Quando encerrado, quem clicar em "Realizar Inscrição" na página inicial verá o aviso:{' '}
+                    <span className="italic">
+                      "Período de Matrículas encerrado (para mais informações entre em contato com a escola ou
+                      a Secretaria de Educação. Obrigado!)"
+                    </span>
+                    . Solicitações já enviadas continuam disponíveis para análise normalmente pelos diretores.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* TAB 0: ANNOUNCEMENT / CARD DE INFORMAÇÕES GERAIS */}
             {dashboardTab === 'announcement' && (

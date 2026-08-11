@@ -21,7 +21,7 @@ export const ProtocolQueryModal: React.FC<ProtocolQueryModalProps> = ({
     protocol: string;
     studentName: string;
     schoolName: string;
-    status: 'Pendente' | 'Cadastrado' | 'Rejeitado';
+    status: 'Pendente' | 'Cadastrado' | 'Rejeitado' | 'Lista de Espera';
     rejectionReason?: string;
     createdAt: string;
     updatedAt: string;
@@ -126,6 +126,31 @@ export const ProtocolQueryModal: React.FC<ProtocolQueryModalProps> = ({
                     </div>
                     <div className="flex items-center space-x-1.5">
                       <Calendar className="w-4 h-4 text-emerald-600" />
+                      <span>Atualizado em: {formatDateBR(result.updatedAt)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Waitlist Status */}
+              {result.status === 'Lista de Espera' && (
+                <div className="p-5 bg-amber-50 border-2 border-amber-300 rounded-2xl text-amber-950 space-y-3">
+                  <div className="flex items-center space-x-2 text-amber-800">
+                    <Clock className="w-6 h-6 shrink-0 text-amber-600" />
+                    <h4 className="font-extrabold text-lg">Em lista de espera</h4>
+                  </div>
+                  <p className="text-xs sm:text-sm text-amber-900 leading-relaxed font-medium">
+                    No momento, as vagas para esta escola estão esgotadas. Sua solicitação foi colocada na{' '}
+                    <strong>lista de espera</strong> e, caso surja uma vaga (por desistência ou outro motivo),
+                    a escola poderá entrar em contato pelo telefone informado no cadastro.
+                  </p>
+                  <div className="pt-2 border-t border-amber-200/80 text-xs text-amber-900 space-y-1">
+                    <div className="flex items-center space-x-1.5">
+                      <School className="w-4 h-4 text-amber-700" />
+                      <span>Escola: <strong>{result.schoolName}</strong></span>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <Calendar className="w-4 h-4 text-amber-700" />
                       <span>Atualizado em: {formatDateBR(result.updatedAt)}</span>
                     </div>
                   </div>

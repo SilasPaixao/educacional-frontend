@@ -119,6 +119,19 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
   const currentAge = calculateAge(birthDate);
   let ejaAgeError: string | null = null;
 
+  // Data de nascimento não pode ser hoje nem no futuro (data incompatível com uma matrícula real)
+  let birthDateError: string | null = null;
+  if (birthDate) {
+    const parsedBirthDate = new Date(`${birthDate}T00:00:00`);
+    const todayAtMidnight = new Date();
+    todayAtMidnight.setHours(0, 0, 0, 0);
+    if (isNaN(parsedBirthDate.getTime())) {
+      birthDateError = 'Data de nascimento inválida.';
+    } else if (parsedBirthDate >= todayAtMidnight) {
+      birthDateError = 'A data de nascimento não pode ser hoje nem uma data futura. Verifique o dia, mês e ano informados.';
+    }
+  }
+
   if (modality === 'eja' && birthDate) {
     if (enteringGrade.includes('Fundamental') && currentAge < 15) {
       ejaAgeError = `Inscrição não permitida: Para o EJA Ensino Fundamental é necessário ter no mínimo 15 anos completos (idade identificada: ${currentAge} ano${currentAge === 1 ? '' : 's'}).`;
@@ -166,6 +179,7 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
     schoolId.trim() !== '' &&
     studentName.trim().length >= 3 &&
     birthDate !== '' &&
+    !birthDateError &&
     motherName.trim() !== '' &&
     phone.trim().length >= 10 &&
     email.trim() !== '' &&
@@ -353,13 +367,22 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
                   type="date"
                   required
                   value={birthDate}
+                  max={new Date().toISOString().split('T')[0]}
                   onChange={(e) => setBirthDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 outline-none"
+                  className={`w-full px-3.5 py-2.5 border rounded-lg text-sm focus:ring-2 outline-none ${
+                    birthDateError
+                      ? 'border-red-400 focus:ring-red-500'
+                      : 'border-slate-300 focus:ring-blue-600'
+                  }`}
                 />
-                {birthDate && (
-                  <p className="text-xs font-medium text-blue-700 mt-1">
-                    Idade identificada: {currentAge} anos
-                  </p>
+                {birthDateError ? (
+                  <p className="text-xs font-semibold text-red-600 mt-1">{birthDateError}</p>
+                ) : (
+                  birthDate && (
+                    <p className="text-xs font-medium text-blue-700 mt-1">
+                      Idade identificada: {currentAge} anos
+                    </p>
+                  )
                 )}
               </div>
 

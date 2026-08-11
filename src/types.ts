@@ -4,7 +4,7 @@ export type ModalityType =
   | 'ensino-medio'
   | 'eja';
 
-export type ApplicationStatus = 'Pendente' | 'Cadastrado' | 'Rejeitado';
+export type ApplicationStatus = 'Pendente' | 'Cadastrado' | 'Rejeitado' | 'Lista de Espera';
 
 export interface School {
   id: string;
@@ -133,10 +133,12 @@ export const SCHOOLING_LEVELS_SEQUENCE: string[] = [
 export const NO_PRIOR_SCHOOLING_OPTION = 'Nenhuma / Não se aplica (primeira etapa escolar)';
 
 // Para o EJA, as opções de ingresso são faixas amplas; mapeamos cada uma para o
-// ponto equivalente na sequência geral, para saber o que conta como "anterior".
+// ponto equivalente (exclusivo) na sequência geral, para saber o que conta como "anterior".
+// EJA Fundamental: quem já concluiu até o 8º ano (não concluiu o 9º) pode ingressar.
+// EJA Médio: quem já concluiu até a 2ª série do Médio (não concluiu a 3ª) pode ingressar.
 const EJA_ENTRY_EQUIVALENT_LEVEL: Record<string, string> = {
-  'Ensino Fundamental: Para quem tem 15 anos ou mais': '1º ano',
-  'Ensino Médio: Para quem tem 18 anos ou mais': '1ª do Ens. Médio'
+  'Ensino Fundamental: Para quem tem 15 anos ou mais': '9º ano',
+  'Ensino Médio: Para quem tem 18 anos ou mais': '3ª do Ens. Médio'
 };
 
 /**

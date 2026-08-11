@@ -49,7 +49,7 @@ export async function checkProtocolStatus(protocol: string): Promise<{
   protocol: string;
   studentName: string;
   schoolName: string;
-  status: 'Pendente' | 'Cadastrado' | 'Rejeitado';
+  status: 'Pendente' | 'Cadastrado' | 'Rejeitado' | 'Lista de Espera';
   rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
@@ -113,7 +113,7 @@ export async function fetchDirectorApplications(schoolId: string): Promise<Stude
 
 export async function updateApplicationStatus(
   protocol: string,
-  status: 'Cadastrado' | 'Rejeitado',
+  status: 'Cadastrado' | 'Rejeitado' | 'Lista de Espera',
   rejectionReason?: string
 ): Promise<StudentApplication> {
   const res = await fetch(`${API_BASE}/director/applications/${protocol}`, {
@@ -246,6 +246,27 @@ export async function updateAnnouncement(data: { title: string; content: string 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Erro ao atualizar comunicado.');
+  }
+
+  return res.json();
+}
+
+export async function fetchEnrollmentStatus(): Promise<{ locked: boolean; message: string | null }> {
+  const res = await fetch(`${API_BASE}/enrollment-status`);
+  if (!res.ok) throw new Error('Erro ao verificar status das matrículas.');
+  return res.json();
+}
+
+export async function setEnrollmentLock(locked: boolean): Promise<{ locked: boolean; message: string | null }> {
+  const res = await fetch(`${API_BASE}/admin/enrollment-lock`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ locked })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Erro ao atualizar status das matrículas.');
   }
 
   return res.json();

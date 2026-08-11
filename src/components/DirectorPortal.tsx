@@ -59,7 +59,6 @@ export const DirectorPortal: React.FC<DirectorPortalProps> = ({ isOpen, onClose 
 
   // Selected App for Modal Review
   const [selectedApp, setSelectedApp] = useState<StudentApplication | null>(null);
-  const [rejectReasonType, setRejectReasonType] = useState<'inconsistency' | 'no_vacancy'>('inconsistency');
   const [updatingStatus, setUpdatingStatus] = useState(false);
   // Solicitações já decididas (Cadastrado/Rejeitado) ficam travadas por padrão;
   // o diretor precisa clicar em "Mudar decisão" para reabrir as opções de homologar/rejeitar.
@@ -131,17 +130,15 @@ export const DirectorPortal: React.FC<DirectorPortalProps> = ({ isOpen, onClose 
   };
 
   const handleStatusDecision = async (
-    status: 'Cadastrado' | 'Rejeitado',
+    status: 'Cadastrado' | 'Rejeitado' | 'Lista de Espera',
     customReason?: string
   ) => {
     if (!selectedApp || !session?.schoolId) return;
 
+    // Único motivo de rejeição permitido: "falta de vaga" foi substituído pelo fluxo de Lista de Espera
     let reason = customReason;
     if (status === 'Rejeitado' && !reason) {
-      reason =
-        rejectReasonType === 'inconsistency'
-          ? 'Inconsistência nos dados fornecidos'
-          : 'Falta de vaga na instituição escolar';
+      reason = 'Inconsistência nos dados fornecidos';
     }
 
     setUpdatingStatus(true);
@@ -448,7 +445,7 @@ export const DirectorPortal: React.FC<DirectorPortalProps> = ({ isOpen, onClose 
                 }`}
               >
                 <FileText className="w-4 h-4" />
-                <span>Histórico (Homologados & Rejeitados 3 meses)</span>
+                <span>Histórico (Decididos e Lista de Espera, 3 meses)</span>
                 <span className="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded-full">
                   {historyList.length}
                 </span>
@@ -498,6 +495,11 @@ export const DirectorPortal: React.FC<DirectorPortalProps> = ({ isOpen, onClose 
                             {appItem.status === 'Rejeitado' && (
                               <span className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 text-[10px] font-bold px-2.5 py-1 rounded-full">
                                 <XCircle className="w-3 h-3 text-rose-600" /> Rejeitado
+                              </span>
+                            )}
+                            {appItem.status === 'Lista de Espera' && (
+                              <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-full">
+                                <Clock className="w-3 h-3 text-amber-600" /> Lista de Espera
                               </span>
                             )}
                             {appItem.status === 'Pendente' && (
@@ -635,23 +637,32 @@ export const DirectorPortal: React.FC<DirectorPortalProps> = ({ isOpen, onClose 
                 </h4>
 
                 {selectedApp.status !== 'Pendente' && !changingDecision ? (
-                  // Solicitação já decidida: mostra o resultado e trava as opções de homologar/rejeitar
+                  // Solicitação já decidida: mostra o resultado e trava as opções de homologar/rejeitar/lista de espera
                   <div className="space-y-3">
                     <div
                       className={`p-3 rounded-lg text-xs font-semibold flex items-center gap-2 ${
                         selectedApp.status === 'Cadastrado'
                           ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          : selectedApp.status === 'Lista de Espera'
+                          ? 'bg-amber-100 text-amber-800 border border-amber-200'
                           : 'bg-rose-100 text-rose-800 border border-rose-200'
                       }`}
                     >
                       {selectedApp.status === 'Cadastrado' ? (
                         <CheckCircle className="w-4 h-4 shrink-0" />
+                      ) : selectedApp.status === 'Lista de Espera' ? (
+                        <Clock className="w-4 h-4 shrink-0" />
                       ) : (
                         <XCircle className="w-4 h-4 shrink-0" />
                       )}
                       <span>
                         Esta solicitação já foi{' '}
-                        {selectedApp.status === 'Cadastrado' ? 'homologada' : 'rejeitada'}.
+                        {selectedApp.status === 'Cadastrado'
+                          ? 'homologada'
+                          : selectedApp.status === 'Lista de Espera'
+                          ? 'colocada em lista de espera (vagas esgotadas)'
+                          : 'rejeitada'}
+                        .
                         {selectedApp.status === 'Rejeitado' && selectedApp.rejectionReason
                           ? ` Motivo: ${selectedApp.rejectionReason}.`
                           : ''}
@@ -678,34 +689,37 @@ export const DirectorPortal: React.FC<DirectorPortalProps> = ({ isOpen, onClose 
                       </div>
                     )}
 
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <button
                         onClick={() => handleStatusDecision('Cadastrado')}
                         disabled={updatingStatus}
-                        className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-sm"
+                        className="py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-sm disabled:opacity-60"
                       >
                         <CheckCircle className="w-4 h-4" />
-                        <span>Homologar e Cadastrar Aluno</span>
+                        <span>Homologar e Cadastrar</span>
                       </button>
 
-                      <div className="flex-1 flex flex-col gap-2">
-                        <select
-                          value={rejectReasonType}
-                          onChange={(e) => setRejectReasonType(e.target.value as any)}
-                          className="w-full p-2 border border-slate-300 rounded-lg text-xs bg-white"
-                        >
-                          <option value="inconsistency">Motivo: Inconsistência nos dados fornecidos</option>
-                          <option value="no_vacancy">Motivo: Falta de vaga na instituição</option>
-                        </select>
+                      <button
+                        onClick={() => handleStatusDecision('Lista de Espera')}
+                        disabled={updatingStatus}
+                        className="py-3 px-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-sm disabled:opacity-60"
+                      >
+                        <Clock className="w-4 h-4" />
+                        <span>Colocar em Lista de Espera</span>
+                      </button>
 
+                      <div className="flex flex-col gap-1.5">
                         <button
                           onClick={() => handleStatusDecision('Rejeitado')}
                           disabled={updatingStatus}
-                          className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-sm"
+                          className="py-3 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-sm disabled:opacity-60"
                         >
                           <XCircle className="w-4 h-4" />
                           <span>Rejeitar Solicitação</span>
                         </button>
+                        <p className="text-[10px] text-slate-500 text-center leading-tight">
+                          Motivo: inconsistência nos dados fornecidos
+                        </p>
                       </div>
                     </div>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ModalityType, MODALITY_LABELS } from '../types';
-import { Baby, GraduationCap, School, BookOpen, Search, ArrowRight, CheckCircle2, ShieldAlert, Bell, Instagram } from 'lucide-react';
-import { fetchAnnouncement } from '../services/api';
+import { ModalityType } from '../types';
+import { Baby, Search, ArrowRight, CheckCircle2, ShieldAlert, Bell, Instagram, Sparkles, HeartHandshake, Users, Lock } from 'lucide-react';
+import { fetchAnnouncement, fetchEnrollmentStatus } from '../services/api';
 
 interface HomeSectionsProps {
   onSelectModality: (modality: ModalityType) => void;
@@ -17,6 +17,11 @@ export const HomeSections: React.FC<HomeSectionsProps> = ({
     title: 'Aviso Importante sobre Pré-Matrículas',
     content: 'As inscrições normalmente se iniciam nas datas próximas ao fim do ano letivo, fique atento às nossas redes sociais para mais informações!'
   });
+  const [enrollmentLocked, setEnrollmentLocked] = useState(false);
+  const [enrollmentLockedMsg, setEnrollmentLockedMsg] = useState(
+    'Período de Matrículas encerrado (para mais informações entre em contato com a escola ou a Secretaria de Educação. Obrigado!)'
+  );
+  const [showClosedModal, setShowClosedModal] = useState(false);
 
   useEffect(() => {
     fetchAnnouncement()
@@ -28,7 +33,24 @@ export const HomeSections: React.FC<HomeSectionsProps> = ({
       .catch(() => {
         // Fallback default announcement retained
       });
+
+    fetchEnrollmentStatus()
+      .then((data) => {
+        setEnrollmentLocked(!!data.locked);
+        if (data.message) setEnrollmentLockedMsg(data.message);
+      })
+      .catch(() => {
+        // Se a checagem falhar, não bloqueia a home; o backend ainda valida no envio do formulário
+      });
   }, []);
+
+  const handleModalitySelect = (modality: ModalityType) => {
+    if (enrollmentLocked) {
+      setShowClosedModal(true);
+      return;
+    }
+    onSelectModality(modality);
+  };
 
   const handleConsultSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,67 +59,12 @@ export const HomeSections: React.FC<HomeSectionsProps> = ({
     }
   };
 
-  const sections: {
-    type: ModalityType;
-    title: string;
-    subtitle: string;
-    badge: string;
-    description: string;
-    icon: React.ComponentType<{ className?: string }>;
-    iconBg: string;
-    badgeBg: string;
-    buttonBg: string;
-    accentHover: string;
-  }[] = [
-    {
-      type: 'educacao-infantil',
-      title: 'Educação Infantil',
-      subtitle: 'Berçário, Maternal I e II, Pré I e II',
-      badge: 'Crianças de 0 a 5 anos',
-      description: 'Matrícula para creches e pré-escolas municipais. Acompanhamento pedagógico e desenvolvimento na primeira infância.',
-      icon: Baby,
-      iconBg: 'bg-pink-100 text-pink-600',
-      badgeBg: 'bg-pink-100/80 text-pink-800 border-pink-200/60',
-      buttonBg: 'bg-pink-600 hover:bg-pink-700 text-white',
-      accentHover: 'hover:bg-pink-50/50 hover:border-pink-200',
-    },
-    {
-      type: 'ensino-fundamental',
-      title: 'Ensino Fundamental',
-      subtitle: '1º ao 9º Ano (Anos Iniciais e Finais)',
-      badge: 'A partir dos 6 anos',
-      description: 'Inscrições para o ensino fundamental regular. Formação integral com matriz curricular completa da rede municipal.',
-      icon: School,
-      iconBg: 'bg-blue-100 text-blue-600',
-      badgeBg: 'bg-blue-100/80 text-blue-800 border-blue-200/60',
-      buttonBg: 'bg-blue-600 hover:bg-blue-700 text-white',
-      accentHover: 'hover:bg-blue-50/50 hover:border-blue-200',
-    },
-    {
-      type: 'ensino-medio',
-      title: 'Ensino Médio',
-      subtitle: '1ª, 2ª e 3ª Série do Ensino Médio',
-      badge: 'Ensino Médio Regular',
-      description: 'Preparação para o ENEM, vestibulares e mercado de trabalho em instituições parceiras e municipais.',
-      icon: GraduationCap,
-      iconBg: 'bg-teal-100 text-teal-600',
-      badgeBg: 'bg-teal-100/80 text-teal-800 border-teal-200/60',
-      buttonBg: 'bg-teal-600 hover:bg-teal-700 text-white',
-      accentHover: 'hover:bg-teal-50/50 hover:border-teal-200',
-    },
-    {
-      type: 'eja',
-      title: 'EJA (Jovens e Adultos)',
-      subtitle: 'EJA Fundamental (15+ anos) e EJA Médio (18+ anos)',
-      badge: 'Jovens, Adultos e Idosos',
-      description: 'Oportunidade para concluir os estudos no seu próprio ritmo com horários flexíveis e suporte pedagógico especializado.',
-      icon: BookOpen,
-      iconBg: 'bg-orange-100 text-orange-600',
-      badgeBg: 'bg-orange-100/80 text-orange-900 border-orange-200/60',
-      buttonBg: 'bg-orange-600 hover:bg-orange-700 text-white',
-      accentHover: 'hover:bg-orange-50/50 hover:border-orange-200',
-    },
-  ];
+  // Sistema de matrícula online focado, no momento, apenas na Educação Infantil.
+  const infantil = {
+    type: 'educacao-infantil' as ModalityType,
+    grades: ['Berçário', 'Maternal I', 'Maternal II', 'Pré I', 'Pré II'],
+    ageRange: 'Crianças de 0 a 5 anos',
+  };
 
   return (
     <div className="space-y-12 pb-12">
@@ -122,7 +89,7 @@ export const HomeSections: React.FC<HomeSectionsProps> = ({
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center space-x-2 bg-white/15 backdrop-blur-md px-4 py-1.5 rounded-full text-indigo-100 text-xs font-bold mb-4 border border-white/30 shadow-sm">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Inscrição 100% Online e Gratuita &bull; Ano Letivo 2026</span>
+            <span>Inscrição 100% Online e Gratuita &bull; Ano Letivo {new Date().getFullYear()}</span>
           </div>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white mb-3 leading-tight drop-shadow-md">
             Matrícula Escolar Online <br className="hidden sm:inline" />
@@ -172,62 +139,122 @@ export const HomeSections: React.FC<HomeSectionsProps> = ({
         </div>
       </div>
 
-      {/* Modality Section Header */}
+      {/* Modality Spotlight Section — foco exclusivo em Educação Infantil */}
       <div>
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8">
-          <div>
-            <h3 className="text-2xl font-extrabold text-indigo-950">
-              Escolha a Modalidade de Ensino
-            </h3>
-            <p className="text-indigo-700/80 text-sm mt-1">
-              Clique na modalidade do aluno para preencher o formulário de solicitação de vaga
-            </p>
-          </div>
+        <div className="text-center max-w-2xl mx-auto mb-8">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-pink-700 bg-pink-100 px-3.5 py-1.5 rounded-full border border-pink-200">
+            <Sparkles className="w-3.5 h-3.5" />
+            Inscrições Abertas
+          </span>
+          <h3 className="text-2xl sm:text-3xl font-extrabold text-indigo-950 mt-4">
+            Matrícula para Educação Infantil
+          </h3>
+          <p className="text-indigo-700/80 text-sm mt-2 leading-relaxed">
+            No momento, as inscrições on-line da Rede Municipal de Ensino estão disponíveis
+            para a Educação Infantil. Preencha o pré-cadastro abaixo para solicitar a vaga.
+          </p>
         </div>
 
-        {/* 4 Modalities Grid with Frosted Glass styling */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {sections.map((sec) => {
-            const IconComponent = sec.icon;
-            return (
-              <div
-                key={sec.type}
-                className={`bg-white/40 backdrop-blur-lg border border-white/60 p-6 sm:p-7 rounded-2xl shadow-xl transition-all duration-300 flex flex-col justify-between group ${sec.accentHover}`}
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className={`w-12 h-12 rounded-xl ${sec.iconBg} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform`}>
-                      <IconComponent className="w-6 h-6" />
-                    </div>
-                    <span
-                      className={`text-xs font-semibold px-3 py-1 rounded-full border ${sec.badgeBg}`}
-                    >
-                      {sec.badge}
-                    </span>
+        <div className="max-w-3xl mx-auto">
+          <div className="relative overflow-hidden bg-white/50 backdrop-blur-xl border border-white/70 rounded-[2rem] shadow-2xl">
+            {/* Decorative ambient glows to keep the single card visually rich */}
+            <div className="absolute -top-16 -right-16 w-64 h-64 bg-pink-300/30 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-amber-300/25 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 grid grid-cols-1 md:grid-cols-5">
+              {/* Left: main content */}
+              <div className="md:col-span-3 p-8 sm:p-10 flex flex-col">
+                <div className="flex items-center gap-4 mb-5">
+                  <div className="w-16 h-16 rounded-2xl bg-pink-100 text-pink-600 flex items-center justify-center shadow-md shrink-0">
+                    <Baby className="w-8 h-8" />
                   </div>
+                  <div>
+                    <span className="text-xs font-semibold px-3 py-1 rounded-full border bg-pink-100/80 text-pink-800 border-pink-200/60 inline-block mb-1.5">
+                      {infantil.ageRange}
+                    </span>
+                    <h4 className="text-2xl font-black text-indigo-950 leading-tight">
+                      Educação Infantil
+                    </h4>
+                  </div>
+                </div>
 
-                  <h4 className="text-xl font-bold text-indigo-950 mb-1 leading-snug">
-                    {sec.title}
-                  </h4>
-                  <p className="text-xs font-semibold text-indigo-700/90 mb-3">
-                    {sec.subtitle}
-                  </p>
+                <p className="text-slate-600 text-sm sm:text-[15px] leading-relaxed mb-6">
+                  Matrícula para creches e pré-escolas municipais, com acompanhamento
+                  pedagógico dedicado ao desenvolvimento e cuidado na primeira infância.
+                </p>
 
-                  <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-6">
-                    {sec.description}
-                  </p>
+                {/* Grade chips */}
+                <div className="flex flex-wrap gap-2 mb-8">
+                  {infantil.grades.map((g) => (
+                    <span
+                      key={g}
+                      className="px-3.5 py-1.5 rounded-full bg-white border border-pink-200 text-xs font-bold text-pink-700 shadow-sm"
+                    >
+                      {g}
+                    </span>
+                  ))}
                 </div>
 
                 <button
-                  onClick={() => onSelectModality(sec.type)}
-                  className={`w-full py-3 px-5 rounded-xl font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-md ${sec.buttonBg} group hover:shadow-lg`}
+                  onClick={() => handleModalitySelect(infantil.type)}
+                  className={`w-full sm:w-auto self-start py-3.5 px-8 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] ${
+                    enrollmentLocked
+                      ? 'bg-slate-400 hover:bg-slate-500 text-white'
+                      : 'bg-pink-600 hover:bg-pink-700 text-white hover:shadow-xl'
+                  }`}
                 >
-                  <span>Realizar Inscrição</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  {enrollmentLocked ? (
+                    <>
+                      <Lock className="w-4 h-4" />
+                      <span>Matrículas Encerradas</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Realizar Inscrição</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
               </div>
-            );
-          })}
+
+              {/* Right: supporting highlights panel */}
+              <div className="md:col-span-2 bg-indigo-950/95 text-white p-8 sm:p-10 flex flex-col justify-center gap-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0 border border-white/15">
+                    <HeartHandshake className="w-4 h-4 text-amber-300" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">Cuidado e acolhimento</p>
+                    <p className="text-[11px] text-indigo-200/80 mt-0.5 leading-relaxed">
+                      Equipe pedagógica preparada para o desenvolvimento infantil.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0 border border-white/15">
+                    <Users className="w-4 h-4 text-amber-300" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">Rede municipal completa</p>
+                    <p className="text-[11px] text-indigo-200/80 mt-0.5 leading-relaxed">
+                      Creches e pré-escolas em toda a cidade de Serrinha.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0 border border-white/15">
+                    <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">Processo 100% on-line</p>
+                    <p className="text-[11px] text-indigo-200/80 mt-0.5 leading-relaxed">
+                      Protocolo de acompanhamento gerado na hora.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -290,6 +317,29 @@ export const HomeSections: React.FC<HomeSectionsProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Modal: Período de Matrículas Encerrado */}
+      {showClosedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-indigo-950/40 backdrop-blur-md animate-fade-in">
+          <div className="bg-white/90 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/80 w-full max-w-md overflow-hidden">
+            <div className="p-6 sm:p-8 flex flex-col items-center text-center">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center shadow-sm mb-4">
+                <Lock className="w-7 h-7" />
+              </div>
+              <h3 className="text-lg font-black text-indigo-950 mb-2">Matrículas Encerradas</h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {enrollmentLockedMsg}
+              </p>
+              <button
+                onClick={() => setShowClosedModal(false)}
+                className="mt-6 w-full py-3 px-6 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-sm transition-colors"
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

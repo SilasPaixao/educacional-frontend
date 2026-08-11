@@ -144,7 +144,7 @@ export const HomeSections: React.FC<HomeSectionsProps> = ({
         <div className="text-center max-w-2xl mx-auto mb-8">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-pink-700 bg-pink-100 px-3.5 py-1.5 rounded-full border border-pink-200">
             <Sparkles className="w-3.5 h-3.5" />
-            Inscrições Abertas
+            Inscrições online
           </span>
           <h3 className="text-2xl sm:text-3xl font-extrabold text-indigo-950 mt-4">
             Matrícula para Educação Infantil

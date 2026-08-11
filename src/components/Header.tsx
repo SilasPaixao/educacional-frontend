@@ -1,16 +1,14 @@
 import React from 'react';
-import { Search, Home, Lock } from 'lucide-react';
+import { Search, Home } from 'lucide-react';
 
 interface HeaderProps {
   onGoHome: () => void;
   onOpenConsult: () => void;
-  onOpenDirectorLogin: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onGoHome,
   onOpenConsult,
-  onOpenDirectorLogin,
 }) => {
   return (
     <header className="bg-white/50 backdrop-blur-md border-b border-white/60 shadow-sm sticky top-0 z-40">
@@ -58,15 +56,6 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Search className="w-4 h-4 text-white" />
               <span>Consultar Solicitação</span>
-            </button>
-
-            <button
-              onClick={onOpenDirectorLogin}
-              className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
-              title="Acesso para Diretores e Administradores"
-            >
-              <Lock className="w-3.5 h-3.5 text-amber-300" />
-              <span>Acesso Restrito</span>
             </button>
           </div>
         </div>

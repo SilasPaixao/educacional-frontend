@@ -4,6 +4,8 @@ import {
   School,
   MODALITY_LABELS,
   ENTERING_GRADES,
+  getPriorSchoolingOptions,
+  NO_PRIOR_SCHOOLING_OPTION,
   StudentApplication
 } from '../types';
 import { fetchSchools, uploadDocument, submitApplication } from '../services/api';
@@ -93,6 +95,18 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
       setEnteringGrade(grades[0]);
     }
   }, [modality]);
+
+  // Opções válidas de "última série concluída": sempre etapas anteriores à série de ingresso
+  const priorSchoolingOptions = getPriorSchoolingOptions(modality, enteringGrade);
+
+  // Se a série de ingresso mudar e a última série concluída selecionada deixar de ser válida
+  // (ex: era posterior/igual à nova série de ingresso), reseta para a primeira opção válida
+  useEffect(() => {
+    if (!priorSchoolingOptions.includes(lastGradeCompleted)) {
+      setLastGradeCompleted(priorSchoolingOptions[0] || NO_PRIOR_SCHOOLING_OPTION);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enteringGrade, modality]);
 
   // Enforce "Usar RG do responsável" disabled checkbox for Educação Infantil
   useEffect(() => {
@@ -349,23 +363,8 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
                 )}
               </div>
 
-              {/* Escolaridade / Última série concluída */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Última Série / Escolaridade Concluída <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Nenhuma (primeira matrícula) ou 5º ano"
-                  value={lastGradeCompleted}
-                  onChange={(e) => setLastGradeCompleted(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 outline-none"
-                />
-              </div>
-
               {/* Escolaridade na qual está ingressando */}
-              <div className="md:col-span-2">
+              <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Escolaridade / Série na qual está ingressando <span className="text-red-500">*</span>
                 </label>
@@ -382,6 +381,29 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
                   ))}
                 </select>
               </div>
+
+              {/* Escolaridade / Última série concluída (sempre anterior à série de ingresso) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Última Série / Escolaridade Concluída <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={lastGradeCompleted}
+                  onChange={(e) => setLastGradeCompleted(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 outline-none bg-white font-medium text-slate-900"
+                >
+                  {priorSchoolingOptions.map((grade) => (
+                    <option key={grade} value={grade}>
+                      {grade}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Mostra apenas etapas anteriores à série de ingresso selecionada acima.
+                </p>
+              </div>
+
 
               {/* EJA Age Alert Message */}
               {ejaAgeError && (

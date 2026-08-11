@@ -65,7 +65,6 @@ export default function App() {
           setProtocolQueryCode('');
           setIsProtocolModalOpen(true);
         }}
-        onOpenDirectorLogin={() => setIsDirectorPortalOpen(true)}
       />
 
       {/* Main Page Layout Content */}

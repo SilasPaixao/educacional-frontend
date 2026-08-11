@@ -107,3 +107,56 @@ export const ENTERING_GRADES: Record<ModalityType, string[]> = {
     'Ensino Médio: Para quem tem 18 anos ou mais'
   ]
 };
+
+// Sequência geral (do mais inicial ao mais avançado) da educação básica,
+// usada para calcular quais séries são "anteriores" a uma determinada série de ingresso.
+export const SCHOOLING_LEVELS_SEQUENCE: string[] = [
+  'Berçário',
+  'Maternal I',
+  'Maternal II',
+  'Pré I (Jardim I)',
+  'Pré II (Jardim II)',
+  '1º ano',
+  '2º ano',
+  '3º ano',
+  '4º ano',
+  '5º ano',
+  '6º ano',
+  '7º ano',
+  '8º ano',
+  '9º ano',
+  '1ª do Ens. Médio',
+  '2ª do Ens. Médio',
+  '3ª do Ens. Médio'
+];
+
+export const NO_PRIOR_SCHOOLING_OPTION = 'Nenhuma / Não se aplica (primeira etapa escolar)';
+
+// Para o EJA, as opções de ingresso são faixas amplas; mapeamos cada uma para o
+// ponto equivalente na sequência geral, para saber o que conta como "anterior".
+const EJA_ENTRY_EQUIVALENT_LEVEL: Record<string, string> = {
+  'Ensino Fundamental: Para quem tem 15 anos ou mais': '1º ano',
+  'Ensino Médio: Para quem tem 18 anos ou mais': '1ª do Ens. Médio'
+};
+
+/**
+ * Retorna as opções válidas de "última série / escolaridade concluída" para uma
+ * determinada modalidade e série de ingresso: sempre uma etapa estritamente
+ * anterior à série pretendida, na ordem real da educação básica.
+ */
+export function getPriorSchoolingOptions(modality: ModalityType, enteringGrade: string): string[] {
+  if (!enteringGrade) return [NO_PRIOR_SCHOOLING_OPTION];
+
+  const referenceLevel = modality === 'eja'
+    ? EJA_ENTRY_EQUIVALENT_LEVEL[enteringGrade]
+    : enteringGrade;
+
+  const thresholdIndex = referenceLevel ? SCHOOLING_LEVELS_SEQUENCE.indexOf(referenceLevel) : -1;
+
+  if (thresholdIndex <= 0) {
+    return [NO_PRIOR_SCHOOLING_OPTION];
+  }
+
+  const priorLevels = SCHOOLING_LEVELS_SEQUENCE.slice(0, thresholdIndex);
+  return [NO_PRIOR_SCHOOLING_OPTION, ...priorLevels];
+}

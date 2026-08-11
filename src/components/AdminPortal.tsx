@@ -35,6 +35,8 @@ import {
   BarChart3,
   Bell,
   Megaphone,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 interface AdminPortalProps {
@@ -81,6 +83,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose, exter
   const [schools, setSchools] = useState<School[]>([]);
   const [pendingAdmins, setPendingAdmins] = useState<AdminUser[]>([]);
   const [allApplications, setAllApplications] = useState<StudentApplication[]>([]);
+  const [statsPage, setStatsPage] = useState(1);
+  const STATS_PAGE_SIZE = 20;
   const [loadingDashboard, setLoadingDashboard] = useState(false);
   const [dashboardTab, setDashboardTab] = useState<'announcement' | 'schools' | 'pending_admins' | 'stats'>('announcement');
 
@@ -124,6 +128,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose, exter
       ]);
       setSchools(schList);
       setAllApplications(appList);
+      setStatsPage(1);
       if (annData) {
         if (annData.title) setAnnouncementTitle(annData.title);
         if (annData.content) setAnnouncementContent(annData.content);
@@ -1044,19 +1049,61 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose, exter
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {allApplications.map((app) => (
-                        <tr key={app.protocol}>
-                          <td className="p-3 font-mono font-bold text-blue-900">{app.protocol}</td>
-                          <td className="p-3 font-bold text-slate-900">{app.studentName}</td>
-                          <td className="p-3 text-slate-700">{app.schoolName}</td>
-                          <td className="p-3 text-slate-600">{MODALITY_LABELS[app.modality]}</td>
-                          <td className="p-3">
-                            <span className="font-semibold">{app.status}</span>
+                      {allApplications.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="p-8 text-center text-slate-500 italic">
+                            Nenhuma matrícula registrada até o momento.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        allApplications
+                          .slice((statsPage - 1) * STATS_PAGE_SIZE, statsPage * STATS_PAGE_SIZE)
+                          .map((app) => (
+                            <tr key={app.protocol}>
+                              <td className="p-3 font-mono font-bold text-blue-900">{app.protocol}</td>
+                              <td className="p-3 font-bold text-slate-900">{app.studentName}</td>
+                              <td className="p-3 text-slate-700">{app.schoolName}</td>
+                              <td className="p-3 text-slate-600">{MODALITY_LABELS[app.modality]}</td>
+                              <td className="p-3">
+                                <span className="font-semibold">{app.status}</span>
+                              </td>
+                            </tr>
+                          ))
+                      )}
                     </tbody>
                   </table>
+
+                  {allApplications.length > STATS_PAGE_SIZE && (() => {
+                    const totalPages = Math.ceil(allApplications.length / STATS_PAGE_SIZE);
+                    const rangeStart = (statsPage - 1) * STATS_PAGE_SIZE + 1;
+                    const rangeEnd = Math.min(statsPage * STATS_PAGE_SIZE, allApplications.length);
+                    return (
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-slate-50 border-t border-slate-200 text-xs">
+                        <span className="text-slate-600 font-medium">
+                          Exibindo {rangeStart}–{rangeEnd} de {allApplications.length} matrículas
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setStatsPage((p) => Math.max(1, p - 1))}
+                            disabled={statsPage === 1}
+                            className="p-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </button>
+                          <span className="font-bold text-slate-800 px-2">
+                            Página {statsPage} de {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setStatsPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={statsPage === totalPages}
+                            className="p-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

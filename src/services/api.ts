@@ -213,6 +213,34 @@ export async function registerSchool(schoolData: any): Promise<{ school: School 
   return res.json();
 }
 
+export interface BulkSchoolResult {
+  index: number;
+  name: string;
+  status: 'created' | 'error';
+  error?: string;
+}
+
+export async function bulkRegisterSchools(schools: any[]): Promise<{
+  message: string;
+  created: number;
+  failed: number;
+  results: BulkSchoolResult[];
+}> {
+  const res = await fetch(`${API_BASE}/admin/schools/bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ schools })
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok && !data.results) {
+    throw new Error(data.error || 'Erro ao importar escolas.');
+  }
+
+  return data;
+}
+
 export async function deleteSchool(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/admin/schools/${id}`, {
     method: 'DELETE'

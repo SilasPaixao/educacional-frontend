@@ -14,6 +14,8 @@ import {
   updateAnnouncement,
   fetchEnrollmentStatus,
   setEnrollmentLock,
+  bulkRegisterSchools,
+  BulkSchoolResult,
 } from '../services/api';
 import {
   ShieldCheck,
@@ -40,6 +42,9 @@ import {
   Megaphone,
   ChevronLeft,
   ChevronRight,
+  UploadCloud,
+  FileJson,
+  Download,
 } from 'lucide-react';
 
 interface AdminPortalProps {
@@ -121,6 +126,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose, exter
   const [schAddress, setSchAddress] = useState('');
   const [creatingSchool, setCreatingSchool] = useState(false);
   const [schoolMsg, setSchoolMsg] = useState<string | null>(null);
+
+  // Bulk School Import (JSON) States
+  const [bulkFileName, setBulkFileName] = useState<string | null>(null);
+  const [bulkParsedSchools, setBulkParsedSchools] = useState<any[] | null>(null);
+  const [bulkParseError, setBulkParseError] = useState<string | null>(null);
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ message: string; created: number; failed: number; results: BulkSchoolResult[] } | null>(null);
 
   useEffect(() => {
     if (session) {
@@ -298,6 +310,89 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose, exter
     } finally {
       setCreatingSchool(false);
     }
+  };
+
+  const handleBulkFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBulkResult(null);
+    setBulkParseError(null);
+    setBulkParsedSchools(null);
+    setBulkFileName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = reader.result as string;
+        const parsed = JSON.parse(text);
+        const list = Array.isArray(parsed) ? parsed : parsed.schools;
+
+        if (!Array.isArray(list) || list.length === 0) {
+          setBulkParseError('O arquivo deve conter um array de escolas (ou um objeto com a chave "schools").');
+          return;
+        }
+
+        setBulkParsedSchools(list);
+      } catch {
+        setBulkParseError('Não foi possível ler o arquivo. Verifique se é um JSON válido.');
+      }
+    };
+    reader.onerror = () => setBulkParseError('Erro ao ler o arquivo selecionado.');
+    reader.readAsText(file, 'utf-8');
+  };
+
+  const handleBulkImport = async () => {
+    if (!bulkParsedSchools || bulkParsedSchools.length === 0) return;
+    setBulkImporting(true);
+    setBulkResult(null);
+    try {
+      const result = await bulkRegisterSchools(bulkParsedSchools);
+      setBulkResult(result);
+      if (result.created > 0) {
+        await loadDashboardData();
+      }
+    } catch (err: any) {
+      setBulkResult({
+        message: err.message || 'Erro ao importar escolas.',
+        created: 0,
+        failed: bulkParsedSchools.length,
+        results: []
+      });
+    } finally {
+      setBulkImporting(false);
+    }
+  };
+
+  const handleBulkReset = () => {
+    setBulkFileName(null);
+    setBulkParsedSchools(null);
+    setBulkParseError(null);
+    setBulkResult(null);
+  };
+
+  const handleDownloadTemplate = () => {
+    const template = {
+      schools: [
+        {
+          name: 'Escola Municipal Exemplo',
+          modalities: ['educacao-infantil'],
+          director_username: 'dir.exemplo',
+          director_password: 'trocar-esta-senha',
+          director_name: 'Nome do(a) Diretor(a)',
+          contact_phone: '(75) 98800-0000',
+          contact_email: 'escola.exemplo@serrinha.ba.gov.br',
+          address: 'Rua Exemplo, 123, Centro - Serrinha-BA'
+        }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'modelo-importacao-escolas.json';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleDeleteSchool = async (id: string) => {
@@ -1044,6 +1139,152 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ isOpen, onClose, exter
                     </button>
                   </div>
                 </form>
+
+                {/* Bulk Import via JSON */}
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-3">
+                    <div className="flex items-center space-x-2">
+                      <UploadCloud className="w-5 h-5 text-blue-700" />
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                          Importar Várias Escolas via JSON
+                        </h3>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Cadastre várias escolas de uma vez enviando um arquivo .json
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleDownloadTemplate}
+                      type="button"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors shrink-0"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Baixar modelo (.json)</span>
+                    </button>
+                  </div>
+
+                  <div className="text-[11px] text-slate-500 bg-white border border-slate-200 rounded-lg p-3 leading-relaxed">
+                    O arquivo deve conter um array de escolas (chave <code className="bg-slate-100 px-1 rounded">"schools"</code>),
+                    cada uma com: <code className="bg-slate-100 px-1 rounded">name</code>,{' '}
+                    <code className="bg-slate-100 px-1 rounded">modalities</code> (array),{' '}
+                    <code className="bg-slate-100 px-1 rounded">director_username</code>,{' '}
+                    <code className="bg-slate-100 px-1 rounded">director_password</code> — os demais campos
+                    (<code className="bg-slate-100 px-1 rounded">director_name</code>,{' '}
+                    <code className="bg-slate-100 px-1 rounded">contact_phone</code>,{' '}
+                    <code className="bg-slate-100 px-1 rounded">contact_email</code>,{' '}
+                    <code className="bg-slate-100 px-1 rounded">address</code>) são opcionais.
+                    Modalidades válidas: educacao-infantil, ensino-fundamental, ensino-medio, eja.
+                  </div>
+
+                  {/* File picker */}
+                  <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-2xl py-8 px-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-colors text-center">
+                    <FileJson className="w-8 h-8 text-slate-400" />
+                    <span className="text-xs font-bold text-slate-700">
+                      {bulkFileName ? bulkFileName : 'Clique para selecionar o arquivo .json'}
+                    </span>
+                    {bulkParsedSchools && (
+                      <span className="text-[11px] text-blue-700 font-semibold">
+                        {bulkParsedSchools.length} escola(s) encontrada(s) no arquivo
+                      </span>
+                    )}
+                    <input
+                      type="file"
+                      accept=".json,application/json"
+                      onChange={handleBulkFileSelect}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {bulkParseError && (
+                    <p className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-xs font-semibold flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{bulkParseError}</span>
+                    </p>
+                  )}
+
+                  {bulkParsedSchools && !bulkResult && (
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={handleBulkImport}
+                        disabled={bulkImporting}
+                        className="flex-1 py-3 px-5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-60"
+                      >
+                        {bulkImporting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <UploadCloud className="w-4 h-4" />
+                        )}
+                        <span>Importar {bulkParsedSchools.length} escola(s)</span>
+                      </button>
+                      <button
+                        onClick={handleBulkReset}
+                        type="button"
+                        className="px-5 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl text-xs"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+
+                  {bulkResult && (
+                    <div className="space-y-3">
+                      <div
+                        className={`p-3 rounded-lg text-xs font-semibold flex items-center gap-2 ${
+                          bulkResult.created > 0
+                            ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                            : 'bg-red-50 border border-red-200 text-red-800'
+                        }`}
+                      >
+                        {bulkResult.created > 0 ? (
+                          <CheckCircle className="w-4 h-4 shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                        )}
+                        <span>{bulkResult.message}</span>
+                      </div>
+
+                      {bulkResult.results.length > 0 && (
+                        <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-64 overflow-y-auto">
+                          <table className="w-full text-left text-[11px] text-slate-700 border-collapse">
+                            <thead className="sticky top-0">
+                              <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase font-bold">
+                                <th className="p-2.5">Escola</th>
+                                <th className="p-2.5">Resultado</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 bg-white">
+                              {bulkResult.results.map((r) => (
+                                <tr key={r.index}>
+                                  <td className="p-2.5 font-semibold text-slate-800">{r.name}</td>
+                                  <td className="p-2.5">
+                                    {r.status === 'created' ? (
+                                      <span className="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                                        <CheckCircle className="w-3.5 h-3.5" /> Cadastrada
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 text-rose-700 font-bold">
+                                        <XCircle className="w-3.5 h-3.5" /> {r.error}
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleBulkReset}
+                        type="button"
+                        className="text-xs font-bold text-blue-700 hover:text-blue-900"
+                      >
+                        Importar outro arquivo
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {/* Registered Schools Table */}
                 <div className="space-y-3">
